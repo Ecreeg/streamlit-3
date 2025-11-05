@@ -696,71 +696,146 @@ elif page == "Main Translator":
                         st.success("✅ Culturally adapted humor:")
                         st.markdown(f"### {translated_text}")
 
-                        # Text-to-speech button with Play/Stop controls
-                        lang_map = {
-                            "indian": "hi-IN",
-                            "japanese": "ja-JP",
-                            "german": "de-DE",
-                            "french": "fr-FR",
-                            "chinese": "zh-CN",
-                            "gen z": "en-US",
-                            "corporate": "en-GB"
-                        }
-                        lang_code = lang_map.get(target_culture.strip().lower(), "en-US")
+                        # Text-to-speech button with Play/Stop controls - FIXED VERSION
+lang_map = {
+    "indian": "hi-IN",
+    "japanese": "ja-JP", 
+    "german": "de-DE",
+    "french": "fr-FR",
+    "chinese": "zh-CN",
+    "gen z": "en-US",
+    "corporate": "en-GB",
+    "british": "en-GB",
+    "american": "en-US",
+    "spanish": "es-ES",
+    "italian": "it-IT",
+    "korean": "ko-KR",
+    "russian": "ru-RU"
+}
 
-                        speak_button = f"""
-                        <script>
-                        let currentSpeech = null;
+# Get language code with fallback
+lang_code = lang_map.get(target_culture.strip().lower(), "en-US")
 
-                        function stopSpeech() {{
-                            if (window.speechSynthesis.speaking) {{
-                                window.speechSynthesis.cancel();
-                                console.log("Speech stopped");
-                            }}
-                        }}
+# Create a unique ID for this translation
+translation_id = f"translation_{hash(translated_text) % 10000}"
 
-                        function speakText(text, lang) {{
-                            // Stop any ongoing speech first
-                            stopSpeech();
-                            
-                            const utterance = new SpeechSynthesisUtterance(text);
-                            utterance.lang = lang;
-                            utterance.rate = 1.0;
-                            utterance.pitch = 1.0;
-                            
-                            // Get available voices
-                            const voices = window.speechSynthesis.getVoices();
-                            const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-                            if (voice) utterance.voice = voice;
-                            
-                            // Set up event listeners
-                            utterance.onend = function() {{
-                                console.log("Speech finished");
-                                currentSpeech = null;
-                            }};
-                            
-                            utterance.onerror = function() {{
-                                console.log("Speech error");
-                                currentSpeech = null;
-                            }};
-                            
-                            window.speechSynthesis.speak(utterance);
-                            currentSpeech = utterance;
-                        }}
-                        </script>
+speak_button = f'''
+<script>
+// Global speech control
+let currentSpeech = null;
+let isPlaying = false;
 
-                        <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <button onclick="speakText({json.dumps(translated_text)}, {json.dumps(lang_code)})" 
-                                    style="background-color:#4CAF50; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:white;">
-                                🔊 Play
-                            </button>
-                            <button onclick="stopSpeech()" 
-                                    style="background-color:#f44336; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:white;">
-                                ⏹️ Stop
-                            </button>
-                        </div>
-                        """
-                        components.html(speak_button, height=70)
+function stopAllSpeech() {{
+    if (window.speechSynthesis.speaking) {{
+        window.speechSynthesis.cancel();
+        console.log("All speech stopped");
+    }}
+    isPlaying = false;
+    updateButtonStates();
+}}
+
+function speakText(text, lang, buttonId) {{
+    // Stop any ongoing speech first
+    stopAllSpeech();
+    
+    try {{
+        // Wait for voices to load
+        window.speechSynthesis.onvoiceschanged = function() {{
+            const utterance = new SpeechSynthesisUtterance();
+            utterance.text = text;
+            utterance.lang = lang;
+            utterance.rate = 0.9;  // Slightly slower for clarity
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            // Get available voices and try to find a matching one
+            const voices = window.speechSynthesis.getVoices();
+            console.log("Available voices:", voices.map(v => v.lang + " - " + v.name));
+            
+            // Try to find a voice that matches the language
+            const preferredVoice = voices.find(v => v.lang === lang) || 
+                                 voices.find(v => v.lang.startsWith(lang.split('-')[0])) ||
+                                 voices.find(v => v.lang.includes('en')); // Fallback to English
+            
+            if (preferredVoice) {{
+                utterance.voice = preferredVoice;
+                console.log("Using voice:", preferredVoice.name);
+            }}
+            
+            // Event listeners
+            utterance.onstart = function() {{
+                console.log("Speech started");
+                isPlaying = true;
+                updateButtonStates();
+            }};
+            
+            utterance.onend = function() {{
+                console.log("Speech finished naturally");
+                isPlaying = false;
+                currentSpeech = null;
+                updateButtonStates();
+            }};
+            
+            utterance.onerror = function(event) {{
+                console.error("Speech error:", event.error);
+                isPlaying = false;
+                currentSpeech = null;
+                updateButtonStates();
+                alert("Text-to-speech failed: " + event.error);
+            }};
+            
+            // Speak the text
+            window.speechSynthesis.speak(utterance);
+            currentSpeech = utterance;
+        }};
+        
+        // If voices are already loaded, trigger immediately
+        if (window.speechSynthesis.getVoices().length > 0) {{
+            window.speechSynthesis.onvoiceschanged();
+        }}
+        
+    }} catch (error) {{
+        console.error("Speech synthesis error:", error);
+        alert("Text-to-speech not supported in this browser: " + error.message);
+    }}
+}}
+
+function updateButtonStates() {{
+    // This function would update button states if needed
+    // For now, we'll just log the state
+    console.log("Playing:", isPlaying);
+}}
+
+// Initialize speech synthesis
+if (!window.speechSynthesis) {{
+    console.error("Speech synthesis not supported");
+}} else {{
+    console.log("Speech synthesis supported");
+}}
+</script>
+
+<div style="display: flex; gap: 10px; margin: 15px 0; align-items: center;">
+    <button onclick="speakText({json.dumps(translated_text)}, {json.dumps(lang_code)}, '{translation_id}')" 
+            style="background-color:#4CAF50; border:none; border-radius:8px; padding:10px 16px; cursor:pointer; font-size:16px; color:white; font-weight:bold;">
+        🔊 Play Audio
+    </button>
+    <button onclick="stopAllSpeech()" 
+            style="background-color:#f44336; border:none; border-radius:8px; padding:10px 16px; cursor:pointer; font-size:16px; color:white; font-weight:bold;">
+        ⏹️ Stop Audio
+    </button>
+    <span style="color: #666; font-size: 14px; margin-left: 10px;">
+        Language: {lang_code}
+    </span>
+</div>
+
+<div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+    <small style="color: #666;">
+        💡 <strong>Tip:</strong> If audio doesn't play, check browser permissions or try Chrome/Firefox. 
+        Some browsers require user interaction first.
+    </small>
+</div>
+'''
+components.html(speak_button, height=120)
 
                         if save_translation and model_used:
                             save_translation_db(st.session_state["user_email"], input_text, target_culture, translated_text, model_used)
@@ -829,4 +904,5 @@ elif page == "Settings & Profile":
 # -------------------- FOOTER --------------------
 st.markdown("---")
 st.caption("5 AI Models Available | Type emails manually | Retry after 2 mins if AI fails")
+
 
