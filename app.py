@@ -448,13 +448,10 @@ def get_user_translations_db(user_email, limit=50):
     release_conn(conn)
     return rows
 
-# -------------------- FREE MODELS LIST --------------------
 FREE_MODELS = [
-    "deepseek/deepseek-llm-67b-chat:free",          # DeepSeek 67B - Large & capable
+    "mistralai/mistral-7b-instruct:free",           # This definitely works
+    "huggingfaceh4/zephyr-7b-beta:free",            # Very reliable
     "deepseek/deepseek-coder-33b-instruct:free",    # DeepSeek Coder - Good for creative tasks
-    "google/gemma-7b-it:free",                      # Google's reliable model
-    "meta-llama/llama-3-8b-instruct:free",          # Llama 3
-    "nousresearch/nous-hermes-2-mixtral-8x7b-dpo:free", # Mixtral based
 ]
 
 # -------------------- SMART TRANSLATE FUNCTION --------------------
@@ -544,11 +541,9 @@ if page == "Welcome":
     ⚠️ **AI Model Notice**: If the translation fails or doesn't generate, please wait 2 minutes and try again - free AI models can get busy during peak times
     
     **Available AI Models:**
-    1. **DeepSeek 67B** - Large & Capable
-    2. **DeepSeek Coder** - Creative & Logical  
-    3. **Gemma 7B** - Balanced & Reliable
-    4. **Llama 3** - Creative & Contextual
-    5. **Nous Hermes** - Detailed & Nuanced
+    1. **mistralai** - fast
+    2. **zephyr-7b** - reliable  
+    3. **deepseek-coder-33b** - creative
     
     **Quick Steps:**
     1. **Sign Up**: Create account with email OTP verification
@@ -834,3 +829,4 @@ elif page == "Settings & Profile":
 # -------------------- FOOTER --------------------
 st.markdown("---")
 st.caption("5 AI Models Available | Type emails manually | Retry after 2 mins if AI fails")
+
