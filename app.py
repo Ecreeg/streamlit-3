@@ -1,4 +1,3 @@
-
 # app.py
 import streamlit as st
 import requests
@@ -12,7 +11,6 @@ from email.message import EmailMessage
 import random
 import string
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
 import bcrypt
 
 # -------------------- APP CONFIG --------------------
@@ -196,6 +194,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 # -------------------- SECRETS / CONFIG --------------------
 try:
     POSTGRES_HOST = st.secrets["POSTGRES_HOST"]
@@ -449,17 +448,20 @@ def get_user_translations_db(user_email, limit=50):
     release_conn(conn)
     return rows
 
+# -------------------- FREE MODELS LIST --------------------
 FREE_MODELS = [
-    "mistralai/mistral-7b-instruct:free",           # This definitely works
-    "huggingfaceh4/zephyr-7b-beta:free",            # Very reliable
+    "deepseek/deepseek-llm-67b-chat:free",          # DeepSeek 67B - Large & capable
     "deepseek/deepseek-coder-33b-instruct:free",    # DeepSeek Coder - Good for creative tasks
+    "google/gemma-7b-it:free",                      # Google's reliable model
+    "meta-llama/llama-3-8b-instruct:free",          # Llama 3
+    "nousresearch/nous-hermes-2-mixtral-8x7b-dpo:free", # Mixtral based
 ]
 
 # -------------------- SMART TRANSLATE FUNCTION --------------------
 def smart_translate_humor(input_text, target_culture, max_attempts=3):
     prompt = (
         f"Translate or adapt the following joke or phrase into humor suitable for {target_culture} culture. "
-        f"Maintain the spirit of the joke and make it funny and understandable to that culture.\n\n"
+        f"Maintain the spirit of the joke but make it funny and understandable to that culture.\n\n"
         f"Input: {input_text}\n\nTranslated Humor:"
     )
 
@@ -542,9 +544,11 @@ if page == "Welcome":
     ⚠️ **AI Model Notice**: If the translation fails or doesn't generate, please wait 2 minutes and try again - free AI models can get busy during peak times
     
     **Available AI Models:**
-    1. **Mistral Small** - Fast & Reliable
-    2. **huggingface** - Very reliable
-    3. **deepseek-coder** - Good for creative tasks
+    1. **DeepSeek 67B** - Large & Capable
+    2. **DeepSeek Coder** - Creative & Logical  
+    3. **Gemma 7B** - Balanced & Reliable
+    4. **Llama 3** - Creative & Contextual
+    5. **Nous Hermes** - Detailed & Nuanced
     
     **Quick Steps:**
     1. **Sign Up**: Create account with email OTP verification
@@ -697,61 +701,71 @@ elif page == "Main Translator":
                         st.success("✅ Culturally adapted humor:")
                         st.markdown(f"### {translated_text}")
 
-                       # Replace the entire speak_button section with this:
+                        # Text-to-speech button with Play/Stop controls
+                        lang_map = {
+                            "indian": "hi-IN",
+                            "japanese": "ja-JP",
+                            "german": "de-DE",
+                            "french": "fr-FR",
+                            "chinese": "zh-CN",
+                            "gen z": "en-US",
+                            "corporate": "en-GB"
+                        }
+                        lang_code = lang_map.get(target_culture.strip().lower(), "en-US")
 
-speak_button = f"""
-<script>
-let currentSpeech = null;
+                        speak_button = f"""
+                        <script>
+                        let currentSpeech = null;
 
-function stopSpeech() {{
-    if (window.speechSynthesis.speaking) {{
-        window.speechSynthesis.cancel();
-        console.log("Speech stopped");
-    }}
-}}
+                        function stopSpeech() {{
+                            if (window.speechSynthesis.speaking) {{
+                                window.speechSynthesis.cancel();
+                                console.log("Speech stopped");
+                            }}
+                        }}
 
-function speakText(text, lang) {{
-    // Stop any ongoing speech first
-    stopSpeech();
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    
-    // Get available voices
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-    if (voice) utterance.voice = voice;
-    
-    // Set up event listeners
-    utterance.onend = function() {{
-        console.log("Speech finished");
-        currentSpeech = null;
-    }};
-    
-    utterance.onerror = function() {{
-        console.log("Speech error");
-        currentSpeech = null;
-    }};
-    
-    window.speechSynthesis.speak(utterance);
-    currentSpeech = utterance;
-}}
-</script>
+                        function speakText(text, lang) {{
+                            // Stop any ongoing speech first
+                            stopSpeech();
+                            
+                            const utterance = new SpeechSynthesisUtterance(text);
+                            utterance.lang = lang;
+                            utterance.rate = 1.0;
+                            utterance.pitch = 1.0;
+                            
+                            // Get available voices
+                            const voices = window.speechSynthesis.getVoices();
+                            const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+                            if (voice) utterance.voice = voice;
+                            
+                            // Set up event listeners
+                            utterance.onend = function() {{
+                                console.log("Speech finished");
+                                currentSpeech = null;
+                            }};
+                            
+                            utterance.onerror = function() {{
+                                console.log("Speech error");
+                                currentSpeech = null;
+                            }};
+                            
+                            window.speechSynthesis.speak(utterance);
+                            currentSpeech = utterance;
+                        }}
+                        </script>
 
-<div style="display: flex; gap: 10px; margin-top: 10px;">
-    <button onclick="speakText({json.dumps(translated_text)}, {json.dumps(lang_code)})" 
-            style="background-color:#4CAF50; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:white;">
-        🔊 Play
-    </button>
-    <button onclick="stopSpeech()" 
-            style="background-color:#f44336; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:white;">
-        ⏹️ Stop
-    </button>
-</div>
-"""
-components.html(speak_button, height=70)
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="speakText({json.dumps(translated_text)}, {json.dumps(lang_code)})" 
+                                    style="background-color:#4CAF50; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:white;">
+                                🔊 Play
+                            </button>
+                            <button onclick="stopSpeech()" 
+                                    style="background-color:#f44336; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; font-size:16px; color:white;">
+                                ⏹️ Stop
+                            </button>
+                        </div>
+                        """
+                        components.html(speak_button, height=70)
 
                         if save_translation and model_used:
                             save_translation_db(st.session_state["user_email"], input_text, target_culture, translated_text, model_used)
@@ -770,14 +784,14 @@ components.html(speak_button, height=70)
                         for attempt in attempts:
                             st.write(f"- {attempt}")
                         st.info(
-                                 """
-                                 **💡 What to do now:**
-                                 - Wait 2 minutes and try again
-                                 - Try a shorter or simpler joke
-                                 - Reduce the number of models to try
-                                 - Free AI models often get busy during peak times
-                                 """
-                                )
+                            """
+                            **💡 What to do now:**
+                            - Wait 2 minutes and try again
+                            - Try a shorter or simpler joke
+                            - Reduce the number of models to try
+                            - Free AI models often get busy during peak times
+                            """
+                        )
 
         if show_debug:
             st.divider()
@@ -813,13 +827,10 @@ elif page == "Settings & Profile":
         st.success(f"Logged in as {st.session_state['user_email']}")
         if st.button("Logout", use_container_width=True):
             st.session_state.pop("user_email", None)
-            st.experimental_rerun()
+            st.rerun()
     else:
         st.warning("Please log in to view your profile settings. Go to Main Translator to sign in or sign up.")
 
-
-
-
-
-
-
+# -------------------- FOOTER --------------------
+st.markdown("---")
+st.caption("5 AI Models Available | Type emails manually | Retry after 2 mins if AI fails")
