@@ -1,6 +1,4 @@
 streamlit
-psycopg2-binary
 passlib
 requests
-bcrypt
 python-dotenv
