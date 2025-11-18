@@ -27,113 +27,136 @@ st.set_page_config(
 # -----------------------------------------
 st.markdown("""
 <style>
-/* Pastel UI Palette */
-/* Pastel UI Palette Fixes */
+//* ---------------- DARK MODE PALETTE ---------------- */
 :root {
-    --bg: #faf7ff;                   
-    --card: #ffffff;                 
-    --border: #e8e3f4;               
-    --accent: #c084fc;               
-    --accent-light: #e9d5ff;         
-    --accent-blue: #93c5fd;          
-    --text: #000000;                 /* PURE BLACK TEXT */
-    --muted: #000000;                /* MUTED BLACK ALSO */
+    --bg: #0e0817;                /* deep black-violet */
+    --card: #1a1325;              /* slightly lighter violet-black */
+    --border: #3b2c4a;            /* subtle border */
+    --accent: #9d4edd;            /* vivid violet */
+    --accent-dark: #5a189a;       /* dark royal violet */
+    --accent-blue: #4361ee;       /* electric blue accent */
+    --text: #ffffff;              /* pure white */
+    --muted: #d6d6d6;             /* soft grey for subtle text */
     --radius: 14px;
 }
 
-/* Remove padded white Streamlit block container */
+/* Remove Streamlit default white padding box */
 .block-container {
     padding-top: 0rem !important;
     padding-bottom: 0rem !important;
     padding-left: 0rem !important;
     padding-right: 0rem !important;
-    background: transparent !important;   /* Removes white box */
+    background: transparent !important;
     box-shadow: none !important;
 }
 
-/* Global text color black */
+/* Global text styling */
 html, body, p, div, span, label, textarea, input, select, h1, h2, h3, h4, h5, h6 {
     color: var(--text) !important;
 }
 
-/* Global background */
+/* Background */
 .stApp {
     background-color: var(--bg);
     color: var(--text);
     font-family: "Inter", sans-serif;
 }
 
-/* Card styling */
+/* Cards */
 .card {
     background: var(--card);
     padding: 22px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    box-shadow: 0 3px 15px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.4);
     margin-bottom: 22px;
     color: var(--text) !important;
 }
 
-/* Form inputs */
+/* Inputs */
 .stTextInput input,
 .stTextArea textarea,
 .stSelectbox select {
-    background: #ffffff !important;
+    background: #120d1d !important;
     border-radius: var(--radius) !important;
     border: 1px solid var(--border) !important;
     padding: 10px 12px !important;
     color: var(--text) !important;
 }
 
-/* Buttons — pastel gradient */
+/* Placeholder text */
+input::placeholder,
+textarea::placeholder {
+    color: #bbbbbb !important;
+}
+
+/* Buttons — dark violet gradient */
 .stButton>button {
-    background: linear-gradient(135deg, var(--accent), var(--accent-blue));
-    color: #ffffff !important;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: white !important;
     padding: 10px 18px !important;
     border-radius: var(--radius) !important;
     border: none !important;
     font-weight: 600;
     font-size: 0.95rem;
-    box-shadow: 0 3px 12px rgba(192, 132, 252, 0.4);
+    box-shadow: 0 4px 16px rgba(157, 78, 221, 0.45);
     transition: 0.25s;
 }
 
 .stButton>button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 18px rgba(192, 132, 252, 0.55);
+    box-shadow: 0 6px 22px rgba(157, 78, 221, 0.65);
 }
 
-/* Make sidebar text black */
+/* Sidebar */
+.stSidebar {
+    background: #120d1d !important;
+    color: var(--text) !important;
+    border-right: 1px solid var(--border);
+}
+
 .stSidebar h1, .stSidebar h2, .stSidebar p, .stSidebar div {
     color: var(--text) !important;
 }
 
-/* Tabs */
-.stTabs [data-baseweb="tab"] {
-    background: var(--accent-light) !important;
-    padding: 8px 14px !important;
-    border-radius: var(--radius) !important;
-    font-weight: 600;
+/* Sidebar radio buttons */
+.stSidebar [data-testid="stRadio"] label {
     color: var(--text) !important;
 }
 
-.stTabs [aria-selected="true"] {
-    background: var(--accent) !important;
+.stSidebar [data-testid="stRadio"] [aria-checked="true"] {
+    background: var(--accent-dark) !important;
     color: white !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab"] {
+    background: #1f162d !important;
+    border: 1px solid var(--border) !important;
+    padding: 8px 14px !important;
+    border-radius: var(--radius) !important;
+    color: var(--muted) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background: var(--accent-dark) !important;
+    color: white !important;
+    border: 1px solid var(--accent) !important;
 }
 
 /* Expanders */
 .streamlit-expanderHeader {
-    font-weight: 600 !important;
     color: var(--text) !important;
+    font-weight: 600;
 }
 
 /* Alerts */
 .stAlert, .stSuccess, .stError, .stWarning {
+    background: #1d1528 !important;
     border-radius: var(--radius) !important;
-    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    color: white !important;
 }
-
 
 </style>
 """, unsafe_allow_html=True)
@@ -580,4 +603,5 @@ elif page == "Profile":
             conn.commit()
             conn.close()
             st.success("All translations deleted.")
+
 
