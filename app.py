@@ -28,16 +28,32 @@ st.set_page_config(
 st.markdown("""
 <style>
 /* Pastel UI Palette */
+/* Pastel UI Palette Fixes */
 :root {
-    --bg: #faf7ff;                   /* lavender blush */
-    --card: #ffffff;                 /* pure white */
-    --border: #e8e3f4;               /* very soft lavender border */
-    --accent: #c084fc;               /* soft purple */
-    --accent-light: #e9d5ff;         /* light lilac */
-    --accent-blue: #93c5fd;          /* pastel blue */
-    --text: #2d2a32;                 /* soft dark */
-    --muted: #6e6a75;                /* soft muted grey */
+    --bg: #faf7ff;                   
+    --card: #ffffff;                 
+    --border: #e8e3f4;               
+    --accent: #c084fc;               
+    --accent-light: #e9d5ff;         
+    --accent-blue: #93c5fd;          
+    --text: #000000;                 /* PURE BLACK TEXT */
+    --muted: #000000;                /* MUTED BLACK ALSO */
     --radius: 14px;
+}
+
+/* Remove padded white Streamlit block container */
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+    padding-left: 0rem !important;
+    padding-right: 0rem !important;
+    background: transparent !important;   /* Removes white box */
+    box-shadow: none !important;
+}
+
+/* Global text color black */
+html, body, p, div, span, label, textarea, input, select, h1, h2, h3, h4, h5, h6 {
+    color: var(--text) !important;
 }
 
 /* Global background */
@@ -55,12 +71,7 @@ st.markdown("""
     border: 1px solid var(--border);
     box-shadow: 0 3px 15px rgba(0,0,0,0.03);
     margin-bottom: 22px;
-}
-
-/* Headings */
-h1, h2, h3 {
-    color: var(--accent);
-    font-weight: 700;
+    color: var(--text) !important;
 }
 
 /* Form inputs */
@@ -77,7 +88,7 @@ h1, h2, h3 {
 /* Buttons — pastel gradient */
 .stButton>button {
     background: linear-gradient(135deg, var(--accent), var(--accent-blue));
-    color: white !important;
+    color: #ffffff !important;
     padding: 10px 18px !important;
     border-radius: var(--radius) !important;
     border: none !important;
@@ -92,9 +103,9 @@ h1, h2, h3 {
     box-shadow: 0 5px 18px rgba(192, 132, 252, 0.55);
 }
 
-/* Sidebar text */
-.stSidebar h1, .stSidebar h2, .stSidebar p {
-    color: var(--accent) !important;
+/* Make sidebar text black */
+.stSidebar h1, .stSidebar h2, .stSidebar p, .stSidebar div {
+    color: var(--text) !important;
 }
 
 /* Tabs */
@@ -114,13 +125,15 @@ h1, h2, h3 {
 /* Expanders */
 .streamlit-expanderHeader {
     font-weight: 600 !important;
-    color: var(--accent) !important;
+    color: var(--text) !important;
 }
 
 /* Alerts */
-.stAlert {
+.stAlert, .stSuccess, .stError, .stWarning {
     border-radius: var(--radius) !important;
+    color: var(--text) !important;
 }
+
 
 </style>
 """, unsafe_allow_html=True)
@@ -567,3 +580,4 @@ elif page == "Profile":
             conn.commit()
             conn.close()
             st.success("All translations deleted.")
+
