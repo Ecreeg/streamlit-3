@@ -2,3 +2,4 @@ streamlit
 passlib
 requests
 python-dotenv
+bcrypt
