@@ -27,135 +27,99 @@ st.set_page_config(
 # -----------------------------------------
 st.markdown("""
 <style>
-//* ---------------- DARK MODE PALETTE ---------------- */
+/* Pastel UI Palette */
 :root {
-    --bg: #0e0817;                /* deep black-violet */
-    --card: #1a1325;              /* slightly lighter violet-black */
-    --border: #3b2c4a;            /* subtle border */
-    --accent: #9d4edd;            /* vivid violet */
-    --accent-dark: #5a189a;       /* dark royal violet */
-    --accent-blue: #4361ee;       /* electric blue accent */
-    --text: #ffffff;              /* pure white */
-    --muted: #d6d6d6;             /* soft grey for subtle text */
+    --bg: #faf7ff;                   /* lavender blush */
+    --card: #ffffff;                 /* pure white */
+    --border: #e8e3f4;               /* very soft lavender border */
+    --accent: #c084fc;               /* soft purple */
+    --accent-light: #e9d5ff;         /* light lilac */
+    --accent-blue: #93c5fd;          /* pastel blue */
+    --text: #2d2a32;                 /* soft dark */
+    --muted: #6e6a75;                /* soft muted grey */
     --radius: 14px;
 }
 
-/* Remove Streamlit default white padding box */
-.block-container {
-    padding-top: 0rem !important;
-    padding-bottom: 0rem !important;
-    padding-left: 0rem !important;
-    padding-right: 0rem !important;
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
-/* Global text styling */
-html, body, p, div, span, label, textarea, input, select, h1, h2, h3, h4, h5, h6 {
-    color: var(--text) !important;
-}
-
-/* Background */
+/* Global background */
 .stApp {
     background-color: var(--bg);
     color: var(--text);
     font-family: "Inter", sans-serif;
 }
 
-/* Cards */
+/* Card styling */
 .card {
     background: var(--card);
     padding: 22px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+    box-shadow: 0 3px 15px rgba(0,0,0,0.03);
     margin-bottom: 22px;
-    color: var(--text) !important;
 }
 
-/* Inputs */
+/* Headings */
+h1, h2, h3 {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* Form inputs */
 .stTextInput input,
 .stTextArea textarea,
 .stSelectbox select {
-    background: #120d1d !important;
+    background: #ffffff !important;
     border-radius: var(--radius) !important;
     border: 1px solid var(--border) !important;
     padding: 10px 12px !important;
     color: var(--text) !important;
 }
 
-/* Placeholder text */
-input::placeholder,
-textarea::placeholder {
-    color: #bbbbbb !important;
-}
-
-/* Buttons — dark violet gradient */
+/* Buttons — pastel gradient */
 .stButton>button {
-    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    background: linear-gradient(135deg, var(--accent), var(--accent-blue));
     color: white !important;
     padding: 10px 18px !important;
     border-radius: var(--radius) !important;
     border: none !important;
     font-weight: 600;
     font-size: 0.95rem;
-    box-shadow: 0 4px 16px rgba(157, 78, 221, 0.45);
+    box-shadow: 0 3px 12px rgba(192, 132, 252, 0.4);
     transition: 0.25s;
 }
 
 .stButton>button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 22px rgba(157, 78, 221, 0.65);
+    box-shadow: 0 5px 18px rgba(192, 132, 252, 0.55);
 }
 
-/* Sidebar */
-.stSidebar {
-    background: #120d1d !important;
-    color: var(--text) !important;
-    border-right: 1px solid var(--border);
-}
-
-.stSidebar h1, .stSidebar h2, .stSidebar p, .stSidebar div {
-    color: var(--text) !important;
-}
-
-/* Sidebar radio buttons */
-.stSidebar [data-testid="stRadio"] label {
-    color: var(--text) !important;
-}
-
-.stSidebar [data-testid="stRadio"] [aria-checked="true"] {
-    background: var(--accent-dark) !important;
-    color: white !important;
+/* Sidebar text */
+.stSidebar h1, .stSidebar h2, .stSidebar p {
+    color: var(--accent) !important;
 }
 
 /* Tabs */
 .stTabs [data-baseweb="tab"] {
-    background: #1f162d !important;
-    border: 1px solid var(--border) !important;
+    background: var(--accent-light) !important;
     padding: 8px 14px !important;
     border-radius: var(--radius) !important;
-    color: var(--muted) !important;
+    font-weight: 600;
+    color: var(--text) !important;
 }
 
 .stTabs [aria-selected="true"] {
-    background: var(--accent-dark) !important;
+    background: var(--accent) !important;
     color: white !important;
-    border: 1px solid var(--accent) !important;
 }
 
 /* Expanders */
 .streamlit-expanderHeader {
-    color: var(--text) !important;
-    font-weight: 600;
+    font-weight: 600 !important;
+    color: var(--accent) !important;
 }
 
 /* Alerts */
-.stAlert, .stSuccess, .stError, .stWarning {
-    background: #1d1528 !important;
+.stAlert {
     border-radius: var(--radius) !important;
-    border: 1px solid var(--border) !important;
-    color: white !important;
 }
 
 </style>
@@ -603,5 +567,4 @@ elif page == "Profile":
             conn.commit()
             conn.close()
             st.success("All translations deleted.")
-
 
