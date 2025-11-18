@@ -1,261 +1,163 @@
 # app.py
+"""
+Cross-Culture Humor Mapper — Academic / Research themed rewrite
+- SQLite backend (users.db)
+- OTP signup / reset via email (SMTP from st.secrets)
+- Password hashing with passlib.pbkdf2_sha256 (no bcrypt binary)
+- OpenRouter integration (optional) for translation
+- Academic UI theme (formal, serif headings, muted greys)
+"""
+
 import streamlit as st
-import requests
-import json
-import time
 import streamlit.components.v1 as components
+import sqlite3
 import smtplib
 from email.message import EmailMessage
 import random
 import string
-from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
-import bcrypt
-import sqlite3
-import os
+import time
+import requests
+import json
+from datetime import datetime, timedelta
+from passlib.hash import pbkdf2_sha256
 
 # -------------------- APP CONFIG --------------------
 st.set_page_config(
     page_title="Cross-Culture Humor Mapper",
-    page_icon="🌍",
+    page_icon="📚",
     layout="centered",
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': None
-    }
+    initial_sidebar_state="expanded",
 )
 
-# -------------------- THEME / LIGHT ORANGE UI (CSS) --------------------
+# -------------------- ACADEMIC THEME CSS --------------------
 st.markdown(
     """
     <style>
-    :root {
-      --bg: #fffaf5;          /* very light orange / cream */
-      --card: #fff6ef;        /* card background */
-      --accent: #ffa94d;      /* light orange accent */
-      --accent-2: #ffd6a5;    /* lighter accent */
-      --text: #000000;        /* Pure black text */
-      --muted: #333333;       /* Dark gray for muted text */
-      --success: #16a34a;
+    /* Academic / Research look */
+    :root{
+        --bg: #f4f5f6;
+        --card: #ffffff;
+        --muted: #6b6f72;
+        --accent: #2b2f4a;
+        --accent-soft: #e9eaf0;
+        --border: #d8d9db;
+        --radius: 10px;
     }
     .stApp {
-      background-color: var(--bg);
-      color: var(--text);
-    }
-    .stSidebar .stMarkdown,
-    .stSidebar h1,
-    .stSidebar h2,
-    .stSidebar h3,
-    .stSidebar div,
-    .stSidebar span,
-    .stSidebar p {
-        color: #ffa94d !important;
-    }
-    .stSidebar .stRadio label,
-    .stSidebar .stRadio div,
-    .stSidebar .stRadio span {
-        color: #ffa94d !important;
-    }
-    .stSidebar [data-testid="stRadio"] [role="radiogroup"] [class*="selected"] {
-        background-color: #ffa94d !important;
-    }
-    .stCheckbox label,
-    .stCheckbox span,
-    .stCheckbox div,
-    .stCheckbox p {
-        color: #000000 !important;
-    }
-    .stCheckbox [data-baseweb="checkbox"] {
-        border-color: #000000 !important;
-    }
-    .stTextArea textarea {
-        color: #000000 !important;
-    }
-    .stTextArea label {
-        color: #000000 !important;
-    }
-    .stSelectbox label {
-        color: #000000 !important;
-    }
-    .stSelectbox select {
-        color: #000000 !important;
-    }
-    .stNumberInput label {
-        color: #000000 !important;
-    }
-    .stNumberInput input {
-        color: #000000 !important;
-    }
-    .stMarkdown, .stMarkdown p, .stMarkdown div {
-        color: #000000 !important;
-    }
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3,
-    .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
-        color: #000000 !important;
-    }
-    .stTextInput label, .stTextInput input {
-        color: #000000 !important;
-    }
-    .stButton button {
-        color: #000000 !important;
-        font-weight: 500;
-    }
-    .stButton button span {
-        color: white !important;
-    }
-    .stRadio label {
-        color: #000000 !important;
-    }
-    .stAlert, .stInfo, .stSuccess, .stWarning, .stError {
-        color: #000000 !important;
-    }
-    .stAlert [data-testid="stMarkdownContainer"],
-    .stInfo [data-testid="stMarkdownContainer"],
-    .stSuccess [data-testid="stMarkdownContainer"],
-    .stWarning [data-testid="stMarkdownContainer"],
-    .stError [data-testid="stMarkdownContainer"] {
-        color: #000000 !important;
-    }
-    .stCaption, .stCode {
-        color: #000000 !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #000000 !important;
-    }
-    .stDataFrame, .stTable {
-        color: #000000 !important;
-    }
-    .streamlit-expanderHeader {
-        color: #000000 !important;
-    }
-    .css-18e3th9 { background-color: transparent; }
-    .stButton>button {
-      background: linear-gradient(90deg,var(--accent),var(--accent-2));
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 8px;
-    }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div>select {
-      background: white;
-      border-radius: 8px;
-      border: 1px solid rgba(0,0,0,0.08);
-      color: #000000 !important;
-    }
-    .stSidebar .css-1w0ym84 {
-      background: linear-gradient(180deg, #fff4e6, #fffaf0);
-      border-right: 1px solid rgba(0,0,0,0.03);
-    }
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-      color: var(--text);
+        background: var(--bg);
+        color: #111;
+        font-family: "Georgia", "Times New Roman", serif;
     }
     .card {
-      background: var(--card);
-      padding: 14px;
-      border-radius: 10px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-      color: #000000 !important;
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        border: 1px solid var(--border);
+        margin-bottom: 18px;
     }
+    h1, h2, h3 { font-family: "Georgia", serif !important; color: var(--accent); }
+    .stSidebar .stRadio label { color: var(--accent) !important; font-weight:600; }
+    .stTextInput input, .stTextArea textarea, .stSelectbox select {
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        padding: 8px !important;
+        background: #fff !important;
+    }
+    .stButton>button {
+        background: linear-gradient(180deg,#2b2f4a,#3a3f5f) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        font-weight: 600;
+    }
+    .streamlit-expanderHeader { font-weight:700 !important; color:var(--accent) !important; }
+    .stMarkdown p, .stMarkdown div { color:#222 !important; }
+    .small-muted { color: var(--muted); font-size:0.9rem; }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
-# -------------------- SECRETS / CONFIG --------------------
+# -------------------- SECRETS / REQUIRED CONFIG --------------------
 try:
     SMTP_HOST = st.secrets["SMTP_HOST"]
     SMTP_PORT = int(st.secrets.get("SMTP_PORT", 587))
     SMTP_USER = st.secrets["SMTP_USER"]
     SMTP_PASSWORD = st.secrets["SMTP_PASSWORD"]
     EMAIL_FROM = st.secrets["EMAIL_FROM"]
-
-    OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
-except Exception as e:
-    st.error("Missing required secrets. Please add SMTP and OpenRouter settings to Streamlit secrets.")
+except Exception:
+    st.error("Missing SMTP secrets. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM in Streamlit secrets.")
     st.stop()
 
-# -------------------- SQLITE DB SETUP --------------------
+OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", None)
+
+# -------------------- SQLITE HELPERS --------------------
 DB_PATH = "users.db"
 
-def get_sqlite_conn():
-    # ensure folder exists if DB_PATH is an absolute path (optional)
-    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+def get_conn():
+    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
     conn.row_factory = sqlite3.Row
     return conn
 
-def ensure_tables():
-    conn = get_sqlite_conn()
+def init_db():
+    conn = get_conn()
     cur = conn.cursor()
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        is_verified BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT (datetime('now'))
-    );
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            is_verified INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS otps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL,
-        otp TEXT NOT NULL,
-        purpose TEXT NOT NULL, -- signup | reset
-        expires_at DATETIME NOT NULL,
-        consumed BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT (datetime('now'))
-    );
+        CREATE TABLE IF NOT EXISTS otps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            otp TEXT NOT NULL,
+            purpose TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            consumed INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS humor_translations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_email TEXT NOT NULL,
-        original_text TEXT,
-        target_culture TEXT,
-        translated_text TEXT,
-        model_used TEXT,
-        created_at DATETIME DEFAULT (datetime('now'))
-    );
+        CREATE TABLE IF NOT EXISTS humor_translations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            original_text TEXT,
+            target_culture TEXT,
+            translated_text TEXT,
+            model_used TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     conn.commit()
     cur.close()
     conn.close()
 
-ensure_tables()
+init_db()
 
-# -------------------- PASSWORD HASH - SIMPLIFIED --------------------
-def hash_password(password):
-    if not password:
-        raise ValueError("Password cannot be empty.")
-    password_str = str(password)
-    password_bytes = password_str.encode('utf-8')
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
+# -------------------- SECURITY (PASSWORD) --------------------
+def hash_password(password: str) -> str:
+    return pbkdf2_sha256.hash(password)
 
-def verify_password(plain, hashed):
-    if not plain or not hashed:
-        return False
-    plain_str = str(plain)
-    plain_bytes = plain_str.encode('utf-8')
-    if len(plain_bytes) > 72:
-        plain_bytes = plain_bytes[:72]
+def verify_password(plain: str, hashed: str) -> bool:
     try:
-        hashed_bytes = hashed.encode('utf-8')
-        return bcrypt.checkpw(plain_bytes, hashed_bytes)
+        return pbkdf2_sha256.verify(plain, hashed)
     except Exception:
         return False
 
-# -------------------- EMAIL OTP --------------------
+# -------------------- OTP / EMAIL --------------------
 OTP_LENGTH = 6
 OTP_TTL_MINUTES = 10
-RESEND_COOLDOWN_SECONDS = 30
 
-def gen_otp(n=OTP_LENGTH):
+def _gen_otp(n=OTP_LENGTH):
     return "".join(random.choices(string.digits, k=n))
 
-def send_email_async(to_email, subject, body):
+def _send_email(to_email: str, subject: str, body: str):
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
@@ -271,492 +173,331 @@ def send_email_async(to_email, subject, body):
     except Exception as e:
         return False, str(e)
 
-def create_and_send_otp(email, purpose="signup"):
-    otp = gen_otp()
+def create_and_send_otp(email: str, purpose: str = "signup"):
+    otp = _gen_otp()
     expires_at = (datetime.utcnow() + timedelta(minutes=OTP_TTL_MINUTES)).isoformat()
-    conn = get_sqlite_conn()
+    conn = get_conn()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO otps (email, otp, purpose, expires_at, consumed)
-        VALUES (?, ?, ?, ?, 0);
-    """, (email, otp, purpose, expires_at))
+    cur.execute(
+        "INSERT INTO otps (email, otp, purpose, expires_at, consumed) VALUES (?, ?, ?, ?, 0);",
+        (email, otp, purpose, expires_at)
+    )
     conn.commit()
     cur.close()
     conn.close()
 
-    subject = "Your Cross-Culture Humor Mapper OTP"
-    body = f"Your OTP for {purpose} is: {otp}\nIt expires in {OTP_TTL_MINUTES} minutes.\nIf you did not request this, ignore."
-
-    ok, err = send_email_async(email, subject, body)
+    subject = f"[CC Humor Mapper] OTP for {purpose}"
+    body = f"Your OTP for {purpose} is: {otp}\nExpires in {OTP_TTL_MINUTES} minutes.\nIf you did not request this, ignore."
+    ok, err = _send_email(email, subject, body)
     return ok, err
 
-def verify_otp(email, otp_value, purpose="signup"):
+def verify_otp(email: str, otp_value: str, purpose: str = "signup"):
     now = datetime.utcnow()
-    conn = get_sqlite_conn()
+    conn = get_conn()
     cur = conn.cursor()
-    cur.execute("""
-        SELECT id, expires_at, consumed FROM otps
-        WHERE email = ? AND otp = ? AND purpose = ?
-        ORDER BY created_at DESC
-        LIMIT 1;
-    """, (email, otp_value, purpose))
+    cur.execute(
+        "SELECT id, expires_at, consumed FROM otps WHERE email = ? AND otp = ? AND purpose = ? ORDER BY created_at DESC LIMIT 1;",
+        (email, otp_value, purpose)
+    )
     row = cur.fetchone()
     if not row:
-        cur.close()
-        conn.close()
-        return False, "OTP not found."
-    otp_id = row["id"]
-    expires_at_str = row["expires_at"]
-    consumed = bool(row["consumed"])
+        cur.close(); conn.close()
+        return False, "OTP not found"
 
+    otp_id, expires_at_str, consumed = row["id"], row["expires_at"], row["consumed"]
     try:
         expires_at = datetime.fromisoformat(expires_at_str)
     except Exception:
-        # fallback parse: sqlite stored as text, try parsing many formats
-        try:
-            expires_at = datetime.strptime(expires_at_str, "%Y-%m-%d %H:%M:%S")
-        except Exception:
-            expires_at = now - timedelta(seconds=1)
+        expires_at = datetime.utcnow() - timedelta(seconds=1)
 
     if consumed:
-        cur.close()
-        conn.close()
-        return False, "OTP already used."
+        cur.close(); conn.close()
+        return False, "OTP already used"
 
     if expires_at < now:
-        cur.close()
-        conn.close()
-        return False, "OTP expired."
+        cur.close(); conn.close()
+        return False, "OTP expired"
 
     cur.execute("UPDATE otps SET consumed = 1 WHERE id = ?;", (otp_id,))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return True, None
 
-# -------------------- USER MANAGEMENT (SQLite) --------------------
-def create_user(email, password):
-    password_hash = hash_password(password)
-    conn = get_sqlite_conn()
+# -------------------- USER CRUD --------------------
+def create_user(email: str, password: str):
+    hashed = hash_password(password)
+    conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute("""
-            INSERT INTO users (email, password_hash, is_verified)
-            VALUES (?, ?, 1);
-        """, (email, password_hash))
+        cur.execute("INSERT INTO users (email, password_hash, is_verified) VALUES (?, ?, 1);", (email, hashed))
         conn.commit()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         return True, None
-    except sqlite3.IntegrityError as e:
-        conn.rollback()
-        cur.close()
-        conn.close()
-        return False, "Email already exists."
+    except sqlite3.IntegrityError:
+        cur.close(); conn.close()
+        return False, "Email already registered"
     except Exception as e:
-        conn.rollback()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         return False, str(e)
 
-def get_user_by_email(email):
-    conn = get_sqlite_conn()
+def get_user_by_email(email: str):
+    conn = get_conn()
     cur = conn.cursor()
     cur.execute("SELECT id, email, password_hash, is_verified FROM users WHERE email = ?;", (email,))
     row = cur.fetchone()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     if row:
-        # return as tuple to keep compatibility with existing code
         return (row["id"], row["email"], row["password_hash"], bool(row["is_verified"]))
     return None
 
-def update_user_password(email, new_password):
+def update_user_password(email: str, new_password: str):
     new_hash = hash_password(new_password)
-    conn = get_sqlite_conn()
+    conn = get_conn()
     cur = conn.cursor()
     cur.execute("UPDATE users SET password_hash = ? WHERE email = ?;", (new_hash, email))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
 
 # -------------------- TRANSLATION STORAGE --------------------
-def save_translation_db(user_email, original_text, target_culture, translated_text, model_used):
-    conn = get_sqlite_conn()
+def save_translation(user_email, original_text, target_culture, translated_text, model_used):
+    conn = get_conn()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO humor_translations (user_email, original_text, target_culture, translated_text, model_used)
-        VALUES (?, ?, ?, ?, ?);
-    """, (user_email, original_text, target_culture, translated_text, model_used))
+    cur.execute(
+        "INSERT INTO humor_translations (user_email, original_text, target_culture, translated_text, model_used) VALUES (?, ?, ?, ?, ?);",
+        (user_email, original_text, target_culture, translated_text, model_used)
+    )
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
 
-def get_user_translations_db(user_email, limit=50):
-    conn = get_sqlite_conn()
+def get_user_translations(user_email, limit=100):
+    conn = get_conn()
     cur = conn.cursor()
-    cur.execute("""
-        SELECT id, original_text, target_culture, translated_text, model_used, created_at
-        FROM humor_translations
-        WHERE user_email = ?
-        ORDER BY datetime(created_at) DESC
-        LIMIT ?;
-    """, (user_email, limit))
+    cur.execute(
+        "SELECT id, original_text, target_culture, translated_text, model_used, created_at FROM humor_translations WHERE user_email = ? ORDER BY datetime(created_at) DESC LIMIT ?;",
+        (user_email, limit)
+    )
     rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return rows
 
+# -------------------- TRANSLATION (OpenRouter) --------------------
 FREE_MODELS = [
     "mistralai/mistral-7b-instruct:free",
     "huggingfaceh4/zephyr-7b-beta:free",
     "deepseek/deepseek-coder-33b-instruct:free",
 ]
 
-# -------------------- SMART TRANSLATE FUNCTION --------------------
-def smart_translate_humor(input_text, target_culture, max_attempts=3):
+def smart_translate_humor(input_text, target_culture, max_attempts=2):
+    if not OPENROUTER_API_KEY:
+        return None, None, ["OpenRouter key missing in secrets"]
+
     prompt = (
-        f"Translate or adapt the following joke or phrase into humor suitable for {target_culture} culture. "
-        f"Maintain the spirit of the joke and make it funny and understandable to that culture.\n\n"
-        f"Input: {input_text}\n\nTranslated Humor:"
+        f"Translate/adapt this joke for {target_culture} culture. Keep it funny, clear, and culturally appropriate.\n\nInput: {input_text}\n\nTranslated:"
     )
 
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
+    headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"}
     attempts = []
-
     for i, model in enumerate(FREE_MODELS[:max_attempts]):
+        model_name = model.split("/")[-1]
+        attempts.append(f"Attempt {i+1}: {model_name}")
+        body = {"model": model, "messages": [{"role":"user", "content": prompt}], "max_tokens": 400, "temperature": 0.7}
         try:
-            model_name = model.split('/')[-1]
-            attempts.append(f"Attempt {i+1}: {model_name}")
-
-            if max_attempts > 1:
-                st.write(f"🔄 **Trying:** {model_name}...")
-
-            body = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 500,
-                "temperature": 0.7
-            }
-
-            response = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                data=json.dumps(body),
-                timeout=30
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                if "choices" in data:
-                    translated_text = data["choices"][0]["message"]["content"]
-                    if len(translated_text.strip()) > 10:
-                        if max_attempts > 1:
-                            st.success(f"✅ **Success with {model_name}!**")
-                        return translated_text, model, attempts
+            resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, data=json.dumps(body), timeout=25)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "choices" in data and data["choices"]:
+                    text = data["choices"][0]["message"]["content"].strip()
+                    if len(text) > 5:
+                        return text, model, attempts
                     else:
-                        st.warning(f"❌ {model_name} returned empty response")
-
+                        attempts.append(f"{model_name}: empty")
             else:
-                error_msg = f"HTTP {response.status_code}"
-                if response.status_code == 429:
-                    error_msg = "Rate limited"
-                elif response.status_code == 503:
-                    error_msg = "Service overloaded"
-
-                if max_attempts > 1:
-                    st.warning(f"❌ {model_name} failed ({error_msg})")
-
-            if i < max_attempts - 1:
-                time.sleep(2)
-
-        except requests.exceptions.Timeout:
-            if max_attempts > 1:
-                st.warning(f"⏰ {model_name} timed out")
-            attempts.append(f"Attempt {i+1}: {model_name} - Timeout")
+                attempts.append(f"{model_name}: HTTP {resp.status_code}")
         except Exception as e:
-            if max_attempts > 1:
-                st.warning(f"❌ {model_name} error: {str(e)[:50]}...")
-            attempts.append(f"Attempt {i+1}: {model_name} - Error")
-
+            attempts.append(f"{model_name}: error {str(e)[:80]}")
+        time.sleep(1)
     return None, None, attempts
 
-# -------------------- PAGE LAYOUT / NAV --------------------
-st.sidebar.title("🌍 Navigation")
-page = st.sidebar.radio("Go to", ["Welcome", "Main Translator", "Translation History", "Settings & Profile"])
+# -------------------- UI LAYOUT --------------------
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Welcome", "Translator", "History", "Profile"])
 
-# -------------------- WELCOME --------------------
+# ---------- Welcome ----------
 if page == "Welcome":
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.header("🌍 Cross-Culture Humor Mapper")
-    st.write("**Important Instructions:**")
+    st.title("📚 Cross-Culture Humor Mapper")
+    st.markdown("**Academic edition — formal, clear & reproducible.**")
     st.markdown("""
-    📝 **Login Tip**: When logging in, please type your email manually instead of using copy-paste for better reliability
-
-    ⚠️ **AI Model Notice**: If the translation fails or doesn't generate, please wait 2 minutes and try again - free AI models can get busy during peak times
-
-    **Available AI Models:**
-    1. **Mistral Small** - Fast & Reliable
-    2. **huggingface** - Very reliable
-    3. **deepseek-coder** - Good for creative tasks
-
-    **Quick Steps:**
-    1. **Sign Up**: Create account with email OTP verification
-    2. **Login**: Type email manually (no copy-paste)
-    3. **Translate**: Enter joke and target culture
-    4. **Retry if needed**: Wait 2 mins if AI models fail
-    5. **Save & Listen**: Store translations and use text-to-speech
+    This research-oriented interface offers:
+    - OTP-based signup / password reset (email)
+    - Secure password hashing (PBKDF2)
+    - Translation via OpenRouter (optional)
+    - Persistent SQLite storage for reproducibility
     """)
     st.markdown("</div>", unsafe_allow_html=True)
-    st.caption("🔐 Manual Email Entry | ⏳ 2-Min Retry | 🤖 Multiple AI Models | 🌍 Cultural Adaptation")
+    st.caption("Tip: configure SMTP credentials and (optionally) OPENROUTER_API_KEY in Streamlit secrets.")
 
-# -------------------- MAIN TRANSLATOR --------------------
-elif page == "Main Translator":
+# ---------- Translator ----------
+elif page == "Translator":
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("🎭 Humor Translator")
+    st.header("Translator")
+    st.markdown("Translate or adapt a joke to a target culture. Login to save results.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # AUTH UI
+    # Auth area
     if "user_email" not in st.session_state:
-        st.info("Please sign up or log in to save translations and access full features.")
-        tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "Signup (OTP)", "Forgot Password (OTP)"])
+        st.info("Please sign in or register to use history saving.")
+        tabs = st.tabs(["Sign in", "Register (OTP)", "Password Reset (OTP)"])
 
-        with tab_login:
+        # Sign in
+        with tabs[0]:
             email = st.text_input("Email", key="login_email")
-            password = st.text_input("Password", type="password", key="login_password")
-            if st.button("Login", use_container_width=True, key="login_btn"):
+            pw = st.text_input("Password", type="password", key="login_pw")
+            if st.button("Sign in"):
                 user = get_user_by_email(email)
                 if not user:
-                    st.error("No account with that email. Please sign up.")
+                    st.error("No account found with that email.")
                 else:
-                    _, user_email, password_hash, is_verified = user
-                    if verify_password(password, password_hash):
-                        st.session_state["user_email"] = email
-                        st.success(f"Logged in as {email}")
-                        st.rerun()
+                    _, u_email, pw_hash, verified = user
+                    if verify_password(pw, pw_hash):
+                        st.session_state["user_email"] = u_email
+                        st.success(f"Signed in: {u_email}")
+                        st.experimental_rerun()
                     else:
-                        st.error("Incorrect password.")
+                        st.error("Invalid credentials.")
 
-        with tab_signup:
-            su_email = st.text_input("Email (for signup)", key="signup_email")
-            su_password = st.text_input("Choose password", type="password", key="signup_password")
-
-            # Password validation
-            if su_password:
-                if len(su_password) < 8:
-                    st.warning("⚠️ Password should be at least 8 characters")
-                elif len(su_password) > 72:
-                    st.warning("⚠️ Password is too long (max 72 characters). It will be truncated.")
+        # Register
+        with tabs[1]:
+            su_email = st.text_input("Email for registration", key="reg_email")
+            su_pw = st.text_input("Choose password (min 8 chars)", type="password", key="reg_pw")
+            if su_pw and len(su_pw) < 8:
+                st.warning("Password should be at least 8 characters.")
+            if st.button("Send registration OTP"):
+                if get_user_by_email(su_email):
+                    st.error("Email already registered.")
+                elif not su_pw or len(su_pw) < 8:
+                    st.error("Provide a valid password.")
                 else:
-                    st.success("✅ Password length is good")
-
-            if st.button("Send Signup OTP", use_container_width=True, key="send_signup_otp"):
-                existing = get_user_by_email(su_email)
-                if existing:
-                    st.error("An account already exists with that email. Try logging in or use Forgot Password.")
-                else:
-                    # Validate password length before proceeding
-                    if not su_password or len(su_password) < 8:
-                        st.error("Please choose a password with at least 8 characters")
-                    else:
-                        ok, err = create_and_send_otp(su_email, purpose="signup")
-                        if ok:
-                            st.success("OTP sent to your email. Check your inbox (and spam).")
-                            st.session_state["pending_signup_email"] = su_email
-                            st.session_state["pending_signup_password"] = su_password
-                            st.session_state["signup_sent_at"] = time.time()
-                        else:
-                            st.error(f"Failed to send OTP: {err}")
-
-            if st.session_state.get("pending_signup_email") == su_email:
-                otp_val = st.text_input("Enter OTP", key="signup_otp")
-                if st.button("Verify & Create Account", key="verify_signup_otp"):
-                    ok, err = verify_otp(su_email, otp_val, purpose="signup")
+                    ok, err = create_and_send_otp(su_email, "signup")
                     if ok:
-                        # create user
-                        pw = st.session_state.get("pending_signup_password", "")
-                        if not pw:
-                            st.error("Password not found in session. Please sign up again.")
-                        else:
-                            success, e = create_user(su_email, pw)
+                        st.success("OTP sent. Check your email.")
+                        st.session_state["pending_reg_email"] = su_email
+                        st.session_state["pending_reg_pw"] = su_pw
+                    else:
+                        st.error(f"Failed to send OTP: {err}")
 
-                            if success:
-                                st.success("Account created! You are now logged in.")
-                                st.session_state["user_email"] = su_email
-                                # cleanup
-                                st.session_state.pop("pending_signup_email", None)
-                                st.session_state.pop("pending_signup_password", None)
-                                st.rerun()
-                            else:
-                                st.error(f"Failed to create user: {e}")
+            if st.session_state.get("pending_reg_email") == su_email:
+                otp_val = st.text_input("Enter OTP", key="reg_otp")
+                if st.button("Verify & Create account"):
+                    ok, err = verify_otp(su_email, otp_val, "signup")
+                    if ok:
+                        ok2, e2 = create_user(su_email, st.session_state.get("pending_reg_pw", ""))
+                        if ok2:
+                            st.success("Registration complete — logged in.")
+                            st.session_state["user_email"] = su_email
+                            st.session_state.pop("pending_reg_email", None)
+                            st.session_state.pop("pending_reg_pw", None)
+                            st.experimental_rerun()
+                        else:
+                            st.error(f"Failed to create user: {e2}")
                     else:
                         st.error(f"OTP verify failed: {err}")
 
-        with tab_reset:
-            rs_email = st.text_input("Email (to reset)", key="reset_email")
-            if st.button("Send Reset OTP", key="send_reset_otp"):
-                user = get_user_by_email(rs_email)
-                if not user:
+        # Reset
+        with tabs[2]:
+            rs_email = st.text_input("Email to reset", key="reset_email")
+            if st.button("Send reset OTP"):
+                if not get_user_by_email(rs_email):
                     st.error("No user with that email.")
                 else:
-                    ok, err = create_and_send_otp(rs_email, purpose="reset")
+                    ok, err = create_and_send_otp(rs_email, "reset")
                     if ok:
-                        st.success("OTP sent for password reset.")
+                        st.success("OTP sent for reset.")
                         st.session_state["pending_reset_email"] = rs_email
-                        st.session_state["reset_sent_at"] = time.time()
                     else:
                         st.error(f"Failed to send OTP: {err}")
 
             if st.session_state.get("pending_reset_email") == rs_email:
-                otp_val = st.text_input("Enter Reset OTP", key="reset_otp")
+                otp_val = st.text_input("Reset OTP", key="reset_otp")
                 new_pw = st.text_input("New password", type="password", key="reset_new_pw")
-                if st.button("Verify & Update Password", key="verify_reset_otp"):
-                    ok, err = verify_otp(rs_email, otp_val, purpose="reset")
+                if st.button("Verify & Set new password"):
+                    ok, err = verify_otp(rs_email, otp_val, "reset")
                     if ok:
                         update_user_password(rs_email, new_pw)
-                        st.success("Password updated. You may now log in.")
+                        st.success("Password updated. You may sign in.")
                         st.session_state.pop("pending_reset_email", None)
-                        st.rerun()
                     else:
                         st.error(f"OTP verify failed: {err}")
 
     else:
-        # Logged in UI
-        st.success(f"✅ Logged in as {st.session_state['user_email']}")
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("Logout", use_container_width=True):
-                st.session_state.pop("user_email", None)
-                st.rerun()
-        with col2:
-            if st.button("View History", use_container_width=True):
-                st.rerun()
-        st.divider()
-
-        st.subheader("Translate a joke")
-        input_text = st.text_area("Enter a joke or funny phrase:", height=100)
-        target_culture = st.text_input("Target culture:", placeholder="e.g., Japanese, Indian, Gen Z")
-        max_attempts = st.selectbox("Models to try", [1,2,3], index=2)
-
-        save_translation = st.checkbox("Save to my history", value=True)
-        show_debug = st.checkbox("Show debug information", value=False)
-
-        if st.button("Translate Humor 🎉", use_container_width=True, type="primary"):
-            if not input_text or not target_culture:
-                st.warning("Please fill in both fields.")
-            else:
-                with st.spinner("Finding the best AI model for your humor... 🤖💬"):
-                    translated_text, model_used, attempts = smart_translate_humor(input_text, target_culture, max_attempts)
-                    if translated_text:
-                        st.success("✅ Culturally adapted humor:")
-                        st.markdown(f"### {translated_text}")
-
-                        # Text-to-speech button
-                        lang_map = {
-                            "indian": "hi-IN",
-                            "japanese": "ja-JP",
-                            "german": "de-DE",
-                            "french": "fr-FR",
-                            "chinese": "zh-CN",
-                            "gen z": "en-US",
-                            "corporate": "en-GB"
-                        }
-                        lang_code = lang_map.get(target_culture.strip().lower(), "en-US")
-
-                        speak_button = f"""
-                        <script>
-                        function speakText(text, lang) {{
-                            const utterance = new SpeechSynthesisUtterance(text);
-                            utterance.lang = lang;
-                            utterance.rate = 1.0;
-                            utterance.pitch = 1.0;
-                            const voices = window.speechSynthesis.getVoices();
-                            const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-                            if (voice) utterance.voice = voice;
-                            speechSynthesis.speak(utterance);
-                        }}
-                        </script>
-                        <button style="background-color:#fff; border:none; border-radius:8px; padding:8px 12px; margin-top:10px; cursor:pointer; font-size:16px;">
-                            🔊 Click to Listen
-                        </button>
-                        <script>
-                        const button = document.currentScript.previousElementSibling;
-                        button.addEventListener('click', () => {{
-                            speakText({json.dumps(translated_text)}, {json.dumps(lang_code)});
-                        }});
-                        </script>
-                        """
-                        components.html(speak_button, height=60)
-
-                        if save_translation and model_used:
-                            save_translation_db(st.session_state["user_email"], input_text, target_culture, translated_text, model_used)
-                            st.success("Saved to your history!")
-
-                        # debug store
-                        st.session_state.last_translation = {
-                            "original": input_text,
-                            "target": target_culture,
-                            "translated": translated_text,
-                            "model": model_used
-                        }
-                    else:
-                        st.error("😵 All AI models failed! Here's what happened:")
-                        st.write("### Attempt History:")
-                        for attempt in attempts:
-                            st.write(f"- {attempt}")
-                        st.info(
-                                 """
-                                 **💡 What to do now:**
-                                 - Wait 2 minutes and try again
-                                 - Try a shorter or simpler joke
-                                 - Reduce the number of models to try
-                                 - Free AI models often get busy during peak times
-                                 """
-                                )
-
-        if show_debug:
-            st.divider()
-            st.subheader("🔧 Debug Information")
-            for i, model in enumerate(FREE_MODELS[:5]):
-                st.write(f"{i+1}. {model}")
-            st.caption(f"... and {len(FREE_MODELS) - 5} more backup models")
-            if 'last_translation' in st.session_state:
-                st.write("**Last translation:**")
-                st.json(st.session_state.last_translation)
-
-# -------------------- TRANSLATION HISTORY --------------------
-elif page == "Translation History":
-    st.subheader("📜 Your Translation History")
-    if "user_email" in st.session_state:
-        rows = get_user_translations_db(st.session_state["user_email"])
-        if rows:
-            for i, row in enumerate(rows):
-                _id = row["id"]
-                original_text = row["original_text"]
-                target_culture = row["target_culture"]
-                translated_text = row["translated_text"]
-                model_used = row["model_used"]
-                created_at = row["created_at"]
-                with st.expander(f"Translation {i+1} - {target_culture}"):
-                    st.write(f"**Original:** {original_text}")
-                    st.write(f"**Translated:** {translated_text}")
-                    st.caption(f"Model: {model_used} | Created: {created_at}")
-        else:
-            st.info("No translations found yet. Try translating some jokes!")
-    else:
-        st.warning("Please log in to view your history. Go to Main Translator to sign in or sign up.")
-
-# -------------------- SETTINGS & PROFILE --------------------
-elif page == "Settings & Profile":
-    st.subheader("⚙️ Settings & Profile")
-    if "user_email" in st.session_state:
-        st.success(f"Logged in as {st.session_state['user_email']}")
-        if st.button("Logout", use_container_width=True):
+        # Logged in translator UI
+        st.success(f"Signed in: {st.session_state['user_email']}")
+        if st.button("Sign out"):
             st.session_state.pop("user_email", None)
             st.experimental_rerun()
+
+        st.divider()
+        input_text = st.text_area("Enter joke / phrase", height=120)
+        target = st.text_input("Target culture (e.g., Japanese, Indian, Academic)", placeholder="e.g., Japanese")
+        attempts_choice = st.selectbox("Model attempts", [1,2], index=1)
+        save_choice = st.checkbox("Save to history", value=True)
+
+        if st.button("Translate"):
+            if not input_text or not target:
+                st.warning("Provide both input and target culture.")
+            else:
+                with st.spinner("Translating..."):
+                    translated, model, attempts = smart_translate_humor(input_text, target, max_attempts=attempts_choice)
+                    if translated:
+                        st.markdown("### Translation — adapted")
+                        st.write(translated)
+                        st.caption(f"Model: {model}")
+                        if save_choice:
+                            save_translation(st.session_state["user_email"], input_text, target, translated, model)
+                            st.success("Saved to history.")
+                    else:
+                        st.error("Translation failed.")
+                        st.write("Details / attempts:")
+                        for a in attempts:
+                            st.write("- " + str(a))
+
+# ---------- History ----------
+elif page == "History":
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("Translation History")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if "user_email" not in st.session_state:
+        st.warning("Sign in to view history.")
     else:
-        st.warning("Please log in to view your profile settings. Go to Main Translator to sign in or sign up.")
+        rows = get_user_translations(st.session_state["user_email"], limit=200)
+        if not rows:
+            st.info("No saved translations.")
+        else:
+            for i, r in enumerate(rows, start=1):
+                with st.expander(f"{i}. {r['target_culture']} — {r['created_at']}"):
+                    st.write("**Original:**"); st.write(r["original_text"])
+                    st.write("**Translated:**"); st.write(r["translated_text"])
+                    st.caption(f"Model: {r['model_used']}")
+
+# ---------- Profile ----------
+elif page == "Profile":
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("Profile & Settings")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if "user_email" in st.session_state:
+        st.write(f"Signed in: **{st.session_state['user_email']}**")
+        if st.button("Sign out (profile)"):
+            st.session_state.pop("user_email", None)
+            st.experimental_rerun()
+        st.markdown("---")
+        st.subheader("Account actions")
+        if st.button("Delete all my translations"):
+            # careful: destructive action
+            conn = get_conn(); cur = conn.cursor()
+            cur.execute("DELETE FROM humor_translations WHERE user_email = ?;", (st.session_state["user_email"],))
+            conn.commit(); cur.close(); conn.close()
+            st.success("All translations removed.")
+    else:
+        st.info("Sign in to manage profile.")
